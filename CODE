@@ -1,0 +1,181 @@
+import java.io.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Scanner;
+
+public class MyDiary {
+    private static final int MAX_ENTRIES = 50;
+    private static String[][] entries = new String[MAX_ENTRIES][];
+    private static String[] dates = new String[MAX_ENTRIES];
+    private static int entryCount = 0;
+    private static String dateTimeFormat = "yyyy-MM-dd HH:mm";
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Оберіть формат дати та часу (наприклад: yyyy-MM-dd HH:mm):");
+        String userFormat = scanner.nextLine().trim();
+        if (!userFormat.isEmpty()) {
+            dateTimeFormat = userFormat;
+        }
+
+        System.out.println("1. Відкрити існуючий щоденник");
+        System.out.println("2. Створити новий щоденник");
+        System.out.print("Ваш вибір: ");
+        String choice = scanner.nextLine();
+
+        if (choice.equals("1")) {
+            System.out.print("Введіть шлях до файлу: ");
+            String path = scanner.nextLine();
+            loadFromFile(path);
+        }
+
+        while (true) {
+            System.out.println("\n1. Додати запис");
+            System.out.println("2. Видалити запис за датою");
+            System.out.println("3. Переглянути всі записи");
+            System.out.println("4. Зберегти у файл");
+            System.out.println("0. Вийти");
+            System.out.print("Ваш вибір: ");
+            choice = scanner.nextLine();
+
+            switch (choice) {
+                case "1" -> addEntry(scanner);
+                case "2" -> deleteEntry(scanner);
+                case "3" -> viewEntries();
+                case "4" -> {
+                    System.out.print("Введіть ім'я файлу для збереження: ");
+                    String path = scanner.nextLine();
+                    saveToFile(path);
+                }
+                case "0" -> System.exit(0);
+                default -> System.out.println("Невірний вибір.");
+            }
+        }
+    }
+
+    private static void addEntry(Scanner scanner) {
+        if (entryCount >= MAX_ENTRIES) {
+            System.out.println("Щоденник заповнений.");
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(dateTimeFormat);
+        String date = now.format(formatter);
+
+        System.out.println("Введіть текст запису (порожній рядок — завершення):");
+        String[] lines = new String[20];
+        int count = 0;
+
+        while (count < 20) {
+            String line = scanner.nextLine();
+            if (line.isEmpty()) break;
+            lines[count++] = line;
+        }
+
+        String[] finalLines = new String[count];
+        for (int i = 0; i < count; i++) {
+            finalLines[i] = lines[i];
+        }
+
+        dates[entryCount] = date;
+        entries[entryCount] = finalLines;
+        entryCount++;
+
+        System.out.println("Запис додано.");
+    }
+
+    private static void deleteEntry(Scanner scanner) {
+        System.out.print("Введіть дату запису для видалення: ");
+        String target = scanner.nextLine().trim();
+
+        for (int i = 0; i < entryCount; i++) {
+            if (dates[i].equals(target)) {
+                for (int j = i; j < entryCount - 1; j++) {
+                    dates[j] = dates[j + 1];
+                    entries[j] = entries[j + 1];
+                }
+                entryCount--;
+                System.out.println("Запис видалено.");
+                return;
+            }
+        }
+
+        System.out.println("Запис не знайдено.");
+    }
+
+    private static void viewEntries() {
+        if (entryCount == 0) {
+            System.out.println("Записів немає.");
+            return;
+        }
+
+        for (int i = 0; i < entryCount; i++) {
+            System.out.println("Дата: " + dates[i]);
+            for (String line : entries[i]) {
+                System.out.println(line);
+            }
+            System.out.println(); 
+        }
+    }
+
+    private static void saveToFile(String filename) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
+            for (int i = 0; i < entryCount; i++) {
+                writer.write("@" + dates[i]);
+                writer.newLine();
+                for (String line : entries[i]) {
+                    writer.write(line);
+                    writer.newLine();
+                }
+                writer.newLine(); 
+            }
+            System.out.println("Файл збережено.");
+        } catch (IOException e) {
+            System.out.println("Помилка при збереженні: " + e.getMessage());
+        }
+    }
+
+    private static void loadFromFile(String filename) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
+            String line;
+            String[] tempLines = new String[20];
+            int lineCount = 0;
+            String currentDate = null;
+
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("@")) {
+                    if (currentDate != null && lineCount > 0) {
+                        String[] content = new String[lineCount];
+                        for (int i = 0; i < lineCount; i++) {
+                            content[i] = tempLines[i];
+                        }
+                        dates[entryCount] = currentDate;
+                        entries[entryCount] = content;
+                        entryCount++;
+                        lineCount = 0;
+                    }
+                    currentDate = line.substring(1);
+                } else if (!line.isEmpty()) {
+                    if (lineCount < 20) {
+                        tempLines[lineCount++] = line;
+                    }
+                }
+            }
+
+            if (currentDate != null && lineCount > 0) {
+                String[] content = new String[lineCount];
+                for (int i = 0; i < lineCount; i++) {
+                    content[i] = tempLines[i];
+                }
+                dates[entryCount] = currentDate;
+                entries[entryCount] = content;
+                entryCount++;
+            }
+
+            System.out.println("Файл завантажено.");
+        } catch (IOException e) {
+            System.out.println("Помилка при читанні: " + e.getMessage());
+        }
+    }
+}
